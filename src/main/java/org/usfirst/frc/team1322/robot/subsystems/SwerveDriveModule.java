@@ -15,7 +15,8 @@ import org.usfirst.frc.team1322.robot.commands.SwerveModuleCommand;
  
 
 public class SwerveDriveModule extends Subsystem {
-    private double oneRotation = 19.5; // One rotation of the caddy. Gear Ration is 19:1, so 19.5 is a rough estimate makes sense.
+    // One rotation of the caddy, in encoder counts. Gear Ration is 19:1, so 19.5 is a rough estimate makes sense.
+    private double oneRotation = 19.5; 
     private double mLastTargetAngle = 0;
     private double mStallTimeBegin = 0;
     private boolean negateDrivePower = false;
@@ -116,75 +117,67 @@ public class SwerveDriveModule extends Subsystem {
      * This calculates the best way to get the enclosure to the desired position
      * @param targetAngle desired position
      */
-    public void setTargetAngle(double targetAngle) {
+    public void setTargetAngle(double targetAngle, boolean isRotate) {
+        SmartDashboard.putNumber("Module Current Angle (Enc Counts) " + mModuleNumber, mAngleEncoder.getPosition());
         mLastTargetAngle = targetAngle;
+
+        // Reset Encoder if close to 0
+        double resetThreshold = 1.05;
+        if(Math.abs(mAngleEncoder.getPosition() / oneRotation) >= resetThreshold) {
+            double newEncCount = oneRotation - mAngleEncoder.getPosition();
+            if(Math.abs(mAngleEncoder.getPosition()) > 20) {
+                System.out.println("ERROR " + mAngleEncoder.getPosition());
+            }
+            mAngleEncoder.setPosition(newEncCount);
+        }
 
         // Calculate remainder after dividing by 360 degrees, then print to dashboard
         targetAngle %= 360; 
         SmartDashboard.putNumber("Module Target Angle (Degrees) " + mModuleNumber, targetAngle);
         
         // Add Offset
-        targetAngle += mZeroOffset;
+        //targetAngle += mZeroOffset;
 
         // Get Current Position, then math it to be out of 360 degrees. Then Print to dashboard
         double currentAngle = mAngleEncoder.getPosition() * (360.0 / oneRotation);
+        double currentPercent = currentAngle / 360; // Percentage of angle out of 360
+        double targetPercent = targetAngle / 360; // Percentage of angle out of 360
         SmartDashboard.putNumber("Module Current Angle (Degrees) " + mModuleNumber, currentAngle);
+        SmartDashboard.putNumber("Module Current Angle (Percent/360) " + mModuleNumber, currentPercent);
 
         // Calculate remainder after dividing by 360 degrees
-        double currentAngleMod = currentAngle % 360;
-
-        boolean doItSmart = false;
-        // This would calculate the fastest way to get the enclosure where it needs to go.
-        // Unfortuntely for us, we can't use most of this becasue our drive motors are connected
-        // Thus, we can't switch the direction of one motor without switching the direction of both,
-        // We must use the full rotation of both our enclosures in order to prevent destroying our
-        // Gearboxes. Sorry!
-        if (doItSmart) {
-            // No Negative Degrees
-            if (currentAngleMod < 0) currentAngleMod += 360;
-
-            // Calculate Difference from where we are to where we need to be
-            double delta = currentAngleMod - targetAngle;
-
-            // Calculate the fastest way to get to our desired position
-            if (delta > 180) { // If we are more than 180 degrees off from target, add 360 degrees
-                targetAngle += 360;
-            } else if (delta < -180) { // If we're less than -180 degrees off of target, subtract 360 degrees
-                targetAngle -= 360;
-            }
-
-            // Calculate direction motor must travel based on the way the caddy is facing
-            delta = currentAngleMod - targetAngle;
-            
-            //If the difference between where it is and where it needs to be is greater than 90 degrees
-            if (Math.abs(delta) > 90) {
-                if (delta > 90) 
-                    targetAngle += 180;
-                else if (delta < -90)
-                    targetAngle -= 180;
-            } else {
-                // If our drive motors wern't connected, we could reverse the motor's direction. 
-                // Ours are connected, so we can't do that
-                //mDriveMotor.setInverted(true); // We can't inverse the motors because they're connected :/
-            }
+        //double currentAngleMod = currentAngle;// % 360;
+        /*
+        // Primitive Control
+        if(targetAngle > 180 && !isRotate) {
+            negateDrivePower = true;
+            double first = 360 - targetAngle;
+            double second = 180 - first;
+            targetAngle = second;
         } else {
-           // Prevent enclosure from rotating from 359 back to 0 again.
-           //if(targetAngle > 180) {
-           //     negateDrivePower = true;
-           //     targetAngle /= 2;
-           //} else {
-           //    negateDrivePower = false;
-           //}
+            negateDrivePower = false;
+        }*/
+
+        double delta = currentPercent - targetPercent;
+        SmartDashboard.putNumber("Module Delta (Perc/360) " + mModuleNumber, delta);
+
+        if(Math.abs(delta) > .125) { // Invert angle, reverse motors
+            double first = 1 - targetPercent;
+            double second = (currentPercent > .5) ? 1 - first : -1 * (1 - first);
+            targetAngle = second;
+            negateDrivePower = true;
+        } else {
+            negateDrivePower = false;
         }
         
         // Calculate degrees back to Encoder Counts
-        targetAngle += currentAngle - currentAngleMod;
-        targetAngle *= oneRotation / 360.0;
+        //targetAngle += currentAngle - currentAngleMod;
+        //targetAngle =targetPercent * oneRotation;
 
         // Prevent the caddy from spinning more than 1 rotation. 
         // This prevents us from having to invert motors. However, this
         // is slower, because we will have to rotate the caddy furthur to do what we want.
-        double targetEncoderCount = targetAngle % oneRotation;
+        double targetEncoderCount = targetPercent * oneRotation;
         
         SmartDashboard.putNumber("Commanded Angle for Module (Enc Counts) " + mModuleNumber, targetEncoderCount);
         setPosByEnc(targetEncoderCount);
@@ -195,7 +188,7 @@ public class SwerveDriveModule extends Subsystem {
     }
 
     public void setTargetSpeed(double speed) {
-        mDriveMotor.set((negateDrivePower ? -1 : 1) * speed);
+        //mDriveMotor.set((negateDrivePower ? -1 : 1) * speed);
     }
 
     public void resetEncoder() {

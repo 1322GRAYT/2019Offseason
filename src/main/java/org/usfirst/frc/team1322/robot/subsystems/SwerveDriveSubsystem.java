@@ -71,6 +71,8 @@ public class SwerveDriveSubsystem extends HolonomicDrivetrain {
 
 	@Override
 	public void holonomicDrive(double forward, double strafe, double rotation) {
+		boolean isRotate = Math.abs(rotation) > .1;
+
 		forward *= getSpeedMultiplier();
 		strafe *= getSpeedMultiplier();
 		/*
@@ -112,9 +114,9 @@ public class SwerveDriveSubsystem extends HolonomicDrivetrain {
 
 		for (int i = 0; i < 4; i++) {
 			if (Math.abs(forward) > 0.05 || Math.abs(strafe) > 0.05 || Math.abs(rotation) > 0.05) {
-				mSwerveModules[i].setTargetAngle(angles[i] + 180);
+				mSwerveModules[i].setTargetAngle(angles[i] + 180, isRotate);
 			} else {
-				mSwerveModules[i].setTargetAngle(mSwerveModules[i].getTargetAngle());
+				mSwerveModules[i].setTargetAngle(mSwerveModules[i].getTargetAngle(), isRotate);
 			}
 			mSwerveModules[i].setTargetSpeed(speeds[i]);
 		}
