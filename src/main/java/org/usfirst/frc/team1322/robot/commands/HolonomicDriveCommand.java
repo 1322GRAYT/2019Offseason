@@ -47,7 +47,7 @@ public class HolonomicDriveCommand extends Command {
 
 		double forward = -Robot.getOI().getController().getLeftYValue(); //real: positive
 		double rotation = Robot.getOI().getController().getRightXValue();
-		double strafe =  -Robot.getOI().getController().getLeftXValue(); //real: pos
+		double strafe =  Robot.getOI().getController().getLeftXValue(); //real: pos
 
 		forward = deadband(forward);
 		strafe = deadband(strafe);
